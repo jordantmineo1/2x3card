@@ -38,7 +38,7 @@
     .drop-zone {
       border: 2px dashed #aaa;
       min-height: 110px;
-        min-width: 70px;
+      min-width: 70px; /* Added as requested */
       padding: 10px;
       display: flex;
       flex-wrap: wrap;
@@ -138,6 +138,15 @@
 
   <script>
     // =====================================================
+    // Prevent accidental refresh (beforeunload confirmation)
+    // =====================================================
+    window.addEventListener("beforeunload", function (e) {
+      var confirmationMessage = "Are you sure you want to refresh? Your game will be lost.";
+      (e || window.event).returnValue = confirmationMessage;
+      return confirmationMessage;
+    });
+
+    // =====================================================
     // Utility functions, Deck, and Card Definitions
     // =====================================================
     const suits = ['♠', '♥', '♦', '♣'];
@@ -183,14 +192,14 @@
     let cardIdCounter = 0;
 
     // =====================================================
-    // Mobile/Pointer Drag & Drop Implementation (for non-mouse pointers only)
+    // Mobile/Pointer Drag & Drop Implementation (for non-mouse pointers)
     // =====================================================
     let currentDraggedElem = null;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
 
     function onPointerDown(e) {
-      // Only handle pointer events if not a mouse
+      // Only handle non-mouse pointers (e.g., touch, pen)
       if (e.pointerType === "mouse") return;
       currentDraggedElem = e.target;
       currentDraggedElem.setPointerCapture(e.pointerId);
@@ -205,7 +214,6 @@
     }
 
     function onPointerMove(e) {
-      // Only handle for non-mouse pointers
       if (!currentDraggedElem || e.pointerType === "mouse") return;
       currentDraggedElem.style.left = (e.clientX - dragOffsetX) + 'px';
       currentDraggedElem.style.top = (e.clientY - dragOffsetY) + 'px';
@@ -213,19 +221,23 @@
 
     function onPointerUp(e) {
       if (!currentDraggedElem || e.pointerType === "mouse") return;
+      // Temporarily hide the dragged element so it doesn't block underlying elements.
+      currentDraggedElem.style.display = "none";
       let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+      currentDraggedElem.style.display = "";
+      // Traverse up the DOM tree until a drop zone is found.
       while (dropTarget && !dropTarget.classList.contains("drop-zone")) {
         dropTarget = dropTarget.parentElement;
       }
       if (dropTarget) {
-        // If drop zone is for a hand and already has 3 cards, send back to unassigned.
+        // If drop zone is for a hand and already has 3 cards, redirect to the unassigned area.
         if ((dropTarget.id === "playerHand1" || dropTarget.id === "playerHand2") &&
             dropTarget.childElementCount >= 3) {
           dropTarget = document.getElementById("playerCards");
         }
         dropTarget.appendChild(currentDraggedElem);
       } else {
-        // No valid drop zone, return to unassigned area.
+        // No valid drop zone, return to the unassigned area.
         document.getElementById("playerCards").appendChild(currentDraggedElem);
       }
       currentDraggedElem.style.position = '';
@@ -248,10 +260,10 @@
       img.dataset.suit = card.suit;
       img.src = "assets/card" + suitMapping[card.suit] + card.rank + ".png";
       if (containerType === 'player') {
-        // Add native drag support for mouse-driven devices.
+        // Native drag support for mouse-driven devices.
         img.setAttribute("draggable", "true");
         img.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", e.target.id));
-        // Add pointer events for touch/pen; only process if not coming from a mouse.
+        // Add pointer events for touch/pen.
         img.addEventListener("pointerdown", onPointerDown);
         img.addEventListener("pointermove", onPointerMove);
         img.addEventListener("pointerup", onPointerUp);
@@ -326,7 +338,7 @@
       values.sort((a, b) => a - b);
       if (values[1] === values[0] + 1 && values[2] === values[1] + 1) return true;
       if (values.includes(14)) {
-        let altValues = values.map(v => v===14 ? 1 : v);
+        let altValues = values.map(v => v === 14 ? 1 : v);
         altValues.sort((a, b) => a - b);
         if (altValues[1] === altValues[0] + 1 && altValues[2] === altValues[1] + 1) return true;
       }
@@ -346,7 +358,7 @@
         let values = hand.map(card => getRankValue(card.rank)).sort((a, b) => a - b);
         let highCard = values[2];
         if (values.includes(14)) {
-          let altValues = values.map(v => v===14 ? 1 : v).sort((a, b) => a - b);
+          let altValues = values.map(v => v === 14 ? 1 : v).sort((a, b) => a - b);
           if (altValues[2] === 3) highCard = 3;
         }
         return { type: 6, tiebreakers: [highCard] };
@@ -356,7 +368,7 @@
         let values = hand.map(card => getRankValue(card.rank)).sort((a, b) => a - b);
         let highCard = values[2];
         if (values.includes(14)) {
-          let altValues = values.map(v => v===14 ? 1 : v).sort((a, b) => a - b);
+          let altValues = values.map(v => v === 14 ? 1 : v).sort((a, b) => a - b);
           if (altValues[2] === 3) highCard = 3;
         }
         return { type: 4, tiebreakers: [highCard] };
@@ -473,8 +485,7 @@
         pairCombos.sort((a, b) => {
           let evalA = evaluateHand(a);
           let evalB = evaluateHand(b);
-          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) ||
-                 (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
+          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) || (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
         });
         let chosen = pairCombos[0];
         let remaining = removeCards(cards, chosen);
@@ -511,7 +522,7 @@
       // Deal 6 cards to player and dealer.
       playerCards = deck.splice(0, 6);
       dealerCards = deck.splice(0, 6);
-      // Clear all drop zones and descriptive text.
+      // Clear drop zones and text.
       document.getElementById("playerCards").innerHTML = "";
       document.getElementById("playerHand1").innerHTML = "";
       document.getElementById("playerHand2").innerHTML = "";
@@ -602,7 +613,7 @@
       document.getElementById("dealerHand1Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand1).type);
       document.getElementById("dealerHand2Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand2).type);
 
-      // Compare highest hands and lowest hands.
+      // Compare highest and lowest hands.
       let compHigh = compareHands(playerHighest, dealerHighest);
       let compLow = compareHands(playerLowest, dealerLowest);
       let resultText = "";
