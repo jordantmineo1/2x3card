@@ -25,6 +25,7 @@
       height: auto;
       margin: 5px;
       cursor: grab;
+      touch-action: none; /* Prevent default touch behavior */
     }
     /* Container and Drop Zone Styling */
     .container {
@@ -37,6 +38,7 @@
     .drop-zone {
       border: 2px dashed #aaa;
       min-height: 110px;
+        min-width: 70px;
       padding: 10px;
       display: flex;
       flex-wrap: wrap;
@@ -107,9 +109,9 @@
   <!-- Dealer Area -->
   <div class="container">
     <h2>Dealer's Hands:</h2>
-    <!-- Initially, this will show 6 face down cards -->
+    <!-- Initially, show 6 face-down cards -->
     <div id="dealerFaceDown" class="flex-row" style="justify-content: center;"></div>
-    <!-- After submission, the dealer's split hands will show here -->
+    <!-- After submission, show split hands -->
     <div id="dealerHandsContainer" class="flex-container" style="display: none;">
       <div class="hand-column">
          <div id="dealerHand1" class="flex-row"></div>
@@ -181,6 +183,61 @@
     let cardIdCounter = 0;
 
     // =====================================================
+    // Mobile/Pointer Drag & Drop Implementation (for non-mouse pointers only)
+    // =====================================================
+    let currentDraggedElem = null;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    function onPointerDown(e) {
+      // Only handle pointer events if not a mouse
+      if (e.pointerType === "mouse") return;
+      currentDraggedElem = e.target;
+      currentDraggedElem.setPointerCapture(e.pointerId);
+      let rect = currentDraggedElem.getBoundingClientRect();
+      dragOffsetX = e.clientX - rect.left;
+      dragOffsetY = e.clientY - rect.top;
+      currentDraggedElem.style.position = 'absolute';
+      currentDraggedElem.style.zIndex = 1000;
+      currentDraggedElem.style.left = (e.clientX - dragOffsetX) + 'px';
+      currentDraggedElem.style.top = (e.clientY - dragOffsetY) + 'px';
+      e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+      // Only handle for non-mouse pointers
+      if (!currentDraggedElem || e.pointerType === "mouse") return;
+      currentDraggedElem.style.left = (e.clientX - dragOffsetX) + 'px';
+      currentDraggedElem.style.top = (e.clientY - dragOffsetY) + 'px';
+    }
+
+    function onPointerUp(e) {
+      if (!currentDraggedElem || e.pointerType === "mouse") return;
+      let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+      while (dropTarget && !dropTarget.classList.contains("drop-zone")) {
+        dropTarget = dropTarget.parentElement;
+      }
+      if (dropTarget) {
+        // If drop zone is for a hand and already has 3 cards, send back to unassigned.
+        if ((dropTarget.id === "playerHand1" || dropTarget.id === "playerHand2") &&
+            dropTarget.childElementCount >= 3) {
+          dropTarget = document.getElementById("playerCards");
+        }
+        dropTarget.appendChild(currentDraggedElem);
+      } else {
+        // No valid drop zone, return to unassigned area.
+        document.getElementById("playerCards").appendChild(currentDraggedElem);
+      }
+      currentDraggedElem.style.position = '';
+      currentDraggedElem.style.left = '';
+      currentDraggedElem.style.top = '';
+      currentDraggedElem.style.zIndex = '';
+      currentDraggedElem.releasePointerCapture(e.pointerId);
+      currentDraggedElem = null;
+      updateSubmitStatus();
+    }
+
+    // =====================================================
     // Card Image Creation for Face-Up Cards & Card Back
     // =====================================================
     function createCardImage(card, containerType = 'player') {
@@ -191,8 +248,13 @@
       img.dataset.suit = card.suit;
       img.src = "assets/card" + suitMapping[card.suit] + card.rank + ".png";
       if (containerType === 'player') {
+        // Add native drag support for mouse-driven devices.
         img.setAttribute("draggable", "true");
-        img.addEventListener("dragstart", dragStart);
+        img.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", e.target.id));
+        // Add pointer events for touch/pen; only process if not coming from a mouse.
+        img.addEventListener("pointerdown", onPointerDown);
+        img.addEventListener("pointermove", onPointerMove);
+        img.addEventListener("pointerup", onPointerUp);
       }
       return img;
     }
@@ -205,21 +267,15 @@
     }
 
     // =====================================================
-    // Drag & Drop Functionality
+    // Standard Drag & Drop Handlers for Desktop (fallback)
     // =====================================================
-    function dragStart(e) {
-      e.dataTransfer.setData("text/plain", e.target.id);
-    }
-
     function dragOver(e) {
       e.preventDefault();
       e.currentTarget.classList.add("highlight");
     }
-
     function dragLeave(e) {
       e.currentTarget.classList.remove("highlight");
     }
-
     function dropHandler(e) {
       e.preventDefault();
       e.currentTarget.classList.remove("highlight");
@@ -234,7 +290,6 @@
       targetContainer.appendChild(draggedElem);
       updateSubmitStatus();
     }
-
     document.querySelectorAll(".drop-zone").forEach(zone => {
       zone.addEventListener("dragover", dragOver);
       zone.addEventListener("dragleave", dragLeave);
@@ -266,7 +321,6 @@
     function isFlush(hand) {
       return hand.every(card => card.suit === hand[0].suit);
     }
-
     function isStraight(hand) {
       let values = hand.map(card => getRankValue(card.rank));
       values.sort((a, b) => a - b);
@@ -278,17 +332,14 @@
       }
       return false;
     }
-
     function isThreeOfAKind(hand) {
       return hand[0].rank === hand[1].rank && hand[1].rank === hand[2].rank;
     }
-
     function isPair(hand) {
       return (hand[0].rank === hand[1].rank ||
               hand[0].rank === hand[2].rank ||
               hand[1].rank === hand[2].rank);
     }
-
     function evaluateHand(hand) {
       let sorted = hand.slice().sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
       if (isStraight(hand) && isFlush(hand)) {
@@ -330,7 +381,6 @@
         return { type: 1, tiebreakers: values };
       }
     }
-
     function getHandTypeName(type) {
       switch(type) {
         case 6: return "Straight Flush";
@@ -342,7 +392,6 @@
         default: return "";
       }
     }
-
     function compareHands(handA, handB) {
       let evalA = evaluateHand(handA);
       let evalB = evaluateHand(handB);
@@ -424,7 +473,8 @@
         pairCombos.sort((a, b) => {
           let evalA = evaluateHand(a);
           let evalB = evaluateHand(b);
-          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) || (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
+          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) ||
+                 (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
         });
         let chosen = pairCombos[0];
         let remaining = removeCards(cards, chosen);
@@ -438,7 +488,6 @@
       let hand2 = [ group1[1], group2[1], group3[0] ];
       return { hand1: hand1, hand2: hand2 };
     }
-
     function getCombinations(arr, k) {
       let results = [];
       function helper(start, combo) {
@@ -459,33 +508,31 @@
     // =====================================================
     document.getElementById("dealBtn").addEventListener("click", () => {
       deck = shuffle(createDeck());
-      // Deal 6 cards each to player and dealer.
-      playerCards = deck.splice(0,6);
-      dealerCards = deck.splice(0,6);
+      // Deal 6 cards to player and dealer.
+      playerCards = deck.splice(0, 6);
+      dealerCards = deck.splice(0, 6);
       // Clear all drop zones and descriptive text.
       document.getElementById("playerCards").innerHTML = "";
       document.getElementById("playerHand1").innerHTML = "";
       document.getElementById("playerHand2").innerHTML = "";
       document.getElementById("playerHand1Desc").textContent = "";
       document.getElementById("playerHand2Desc").textContent = "";
-      // Reset dealer display areas.
       document.getElementById("dealerFaceDown").innerHTML = "";
       document.getElementById("dealerHandsContainer").style.display = "none";
       document.getElementById("result").textContent = "";
       document.getElementById("troubleshootBtn").style.display = "none";
       updateSubmitStatus();
       renderPlayerCards();
-
-      // Render 6 face-down cards for the dealer.
+      // Render dealer's 6 face-down cards.
       let dealerFaceDownDiv = document.getElementById("dealerFaceDown");
       dealerFaceDownDiv.innerHTML = "";
       for (let i = 0; i < dealerCards.length; i++) {
         dealerFaceDownDiv.appendChild(createCardBackImage());
       }
+      dealerFaceDownDiv.style.display = "flex";
     });
 
     document.getElementById("submitBtn").addEventListener("click", () => {
-      // Gather player's assigned cards.
       let hand1Elems = document.getElementById("playerHand1").children;
       let hand2Elems = document.getElementById("playerHand2").children;
       if (hand1Elems.length !== 3 || hand2Elems.length !== 3) {
@@ -501,12 +548,12 @@
         playerHand2.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
       }
       
-      // Dealer splits its cards using the house rules.
+      // Dealer splits its cards.
       let dealerSplitHands = dealerSplit(dealerCards);
       dealerHand1 = dealerSplitHands.hand1;
       dealerHand2 = dealerSplitHands.hand2;
 
-      // Hide the face-down dealer cards and reveal the split hands.
+      // Hide face-down dealer cards and reveal split hands.
       document.getElementById("dealerFaceDown").style.display = "none";
       let dealerHandsContainer = document.getElementById("dealerHandsContainer");
       dealerHandsContainer.style.display = "flex";
@@ -531,7 +578,7 @@
       let evalDealer1 = evaluateHand(dealerHand1);
       let evalDealer2 = evaluateHand(dealerHand2);
 
-      // Determine highest and lowest hands for both sides.
+      // Determine highest and lowest hands for each side.
       let playerHighest, playerLowest;
       if (compareHands(playerHand1, playerHand2) >= 0) {
         playerHighest = playerHand1;
@@ -549,7 +596,7 @@
         dealerLowest = dealerHand1;
       }
 
-      // Display hand evaluation descriptions.
+      // Display hand evaluations.
       document.getElementById("playerHand1Desc").textContent = "Your Hand: " + getHandTypeName(evaluateHand(playerHand1).type);
       document.getElementById("playerHand2Desc").textContent = "Your Hand: " + getHandTypeName(evaluateHand(playerHand2).type);
       document.getElementById("dealerHand1Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand1).type);
@@ -558,7 +605,6 @@
       // Compare highest hands and lowest hands.
       let compHigh = compareHands(playerHighest, dealerHighest);
       let compLow = compareHands(playerLowest, dealerLowest);
-
       let resultText = "";
       if (compHigh > 0 && compLow > 0) {
         resultText = "You win! Both your higher and lower hands beat the dealer.";
