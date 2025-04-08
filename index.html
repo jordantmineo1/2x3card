@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Three Card Hand Game</title>
+  <style>
+    /* Global Styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f7f7f7;
+    }
+    h1, h2, h3 {
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    /* Card Image Styling */
+    .card {
+      width: 80px;
+      height: auto;
+      margin: 5px;
+      cursor: grab;
+    }
+    /* Container and Drop Zone Styling */
+    .container {
+      margin-bottom: 20px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+    }
+    .drop-zone {
+      border: 2px dashed #aaa;
+      min-height: 110px;
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .drop-zone.highlight {
+      border-color: #4CAF50;
+      background-color: #f1fff1;
+    }
+    .flex-container {
+      display: flex;
+      justify-content: space-around;
+    }
+    .hand-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 45%;
+    }
+    .hand-desc {
+      margin-top: 5px;
+      font-weight: bold;
+    }
+    .flex-row {
+      display: flex;
+      justify-content: center;
+    }
+    /* Footer styling */
+    footer {
+      text-align: center;
+      font-size: 0.9em;
+      margin-top: 40px;
+      padding-top: 10px;
+      border-top: 1px solid #ccc;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Three Card Hand Game</h1>
+  <p>Objective: Form two three‑card hands that both beat the dealer’s corresponding hands.</p>
+  <button id="dealBtn">Deal Cards</button>
+
+  <!-- Player Cards and Hands -->
+  <div class="container">
+    <h2>Your Cards (Drag to assign):</h2>
+    <div id="playerCards" class="drop-zone"></div>
+  </div>
+
+  <div class="container">
+    <h2>Your Hands:</h2>
+    <div id="playerHands" class="flex-container">
+      <div class="hand-column">
+         <div id="playerHand1" class="drop-zone"></div>
+         <div id="playerHand1Desc" class="hand-desc"></div>
+      </div>
+      <div class="hand-column">
+         <div id="playerHand2" class="drop-zone"></div>
+         <div id="playerHand2Desc" class="hand-desc"></div>
+      </div>
+    </div>
+    <!-- Submit button placed under the Your Hands area -->
+    <div style="text-align: center;">
+      <button id="submitBtn" disabled>Submit Your Hands</button>
+    </div>
+  </div>
+
+  <!-- Dealer Area -->
+  <div class="container">
+    <h2>Dealer's Hands:</h2>
+    <!-- Initially, this will show 6 face down cards -->
+    <div id="dealerFaceDown" class="flex-row" style="justify-content: center;"></div>
+    <!-- After submission, the dealer's split hands will show here -->
+    <div id="dealerHandsContainer" class="flex-container" style="display: none;">
+      <div class="hand-column">
+         <div id="dealerHand1" class="flex-row"></div>
+         <div id="dealerHand1Desc" class="hand-desc"></div>
+      </div>
+      <div class="hand-column">
+         <div id="dealerHand2" class="flex-row"></div>
+         <div id="dealerHand2Desc" class="hand-desc"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result and Troubleshoot Area -->
+  <div class="container">
+    <h2>Result:</h2>
+    <div id="result"></div>
+    <button id="troubleshootBtn" style="display: none;">Troubleshoot</button>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    &copy; Nico Nobido, 2025. All rights owned by Nico Nobido. Code developed by Jordan Mineo, 2025.
+  </footer>
+
+  <script>
+    // =====================================================
+    // Utility functions, Deck, and Card Definitions
+    // =====================================================
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    const suitMapping = { '♠': 'Spades', '♥': 'Hearts', '♦': 'Diamonds', '♣': 'Clubs' };
+
+    function createDeck() {
+      let deck = [];
+      for (let suit of suits) {
+        for (let rank of ranks) {
+          deck.push({rank: rank, suit: suit});
+        }
+      }
+      return deck;
+    }
+
+    // Fisher–Yates Shuffle
+    function shuffle(deck) {
+      for (let i = deck.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function getRankValue(rank) {
+      if (rank === 'A') return 14;
+      if (rank === 'K') return 13;
+      if (rank === 'Q') return 12;
+      if (rank === 'J') return 11;
+      return parseInt(rank);
+    }
+
+    // =====================================================
+    // Global Game State Variables
+    // =====================================================
+    let deck = [];
+    let playerCards = [];
+    let dealerCards = [];
+    let dealerHand1 = [];
+    let dealerHand2 = [];
+    let troubleshootingText = "";
+    let cardIdCounter = 0;
+
+    // =====================================================
+    // Card Image Creation for Face-Up Cards & Card Back
+    // =====================================================
+    function createCardImage(card, containerType = 'player') {
+      let img = document.createElement('img');
+      img.classList.add('card');
+      img.id = "card" + cardIdCounter++;
+      img.dataset.rank = card.rank;
+      img.dataset.suit = card.suit;
+      img.src = "assets/card" + suitMapping[card.suit] + card.rank + ".png";
+      if (containerType === 'player') {
+        img.setAttribute("draggable", "true");
+        img.addEventListener("dragstart", dragStart);
+      }
+      return img;
+    }
+
+    function createCardBackImage() {
+      let img = document.createElement('img');
+      img.classList.add('card');
+      img.src = "assets/cardBack_blue2.png";
+      return img;
+    }
+
+    // =====================================================
+    // Drag & Drop Functionality
+    // =====================================================
+    function dragStart(e) {
+      e.dataTransfer.setData("text/plain", e.target.id);
+    }
+
+    function dragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add("highlight");
+    }
+
+    function dragLeave(e) {
+      e.currentTarget.classList.remove("highlight");
+    }
+
+    function dropHandler(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove("highlight");
+      let id = e.dataTransfer.getData("text/plain");
+      let draggedElem = document.getElementById(id);
+      let targetContainer = e.currentTarget;
+      if ((targetContainer.id === "playerHand1" || targetContainer.id === "playerHand2") &&
+          targetContainer.childElementCount >= 3) {
+        alert("This hand already has 3 cards.");
+        return;
+      }
+      targetContainer.appendChild(draggedElem);
+      updateSubmitStatus();
+    }
+
+    document.querySelectorAll(".drop-zone").forEach(zone => {
+      zone.addEventListener("dragover", dragOver);
+      zone.addEventListener("dragleave", dragLeave);
+      zone.addEventListener("drop", dropHandler);
+    });
+
+    function updateSubmitStatus() {
+      let hand1Count = document.getElementById("playerHand1").childElementCount;
+      let hand2Count = document.getElementById("playerHand2").childElementCount;
+      document.getElementById("submitBtn").disabled = !(hand1Count === 3 && hand2Count === 3);
+    }
+
+    // =====================================================
+    // Rendering the Player's Unassigned Cards
+    // =====================================================
+    function renderPlayerCards() {
+      const playerCardsDiv = document.getElementById("playerCards");
+      playerCardsDiv.innerHTML = "";
+      cardIdCounter = 0;
+      for (let card of playerCards) {
+        let img = createCardImage(card, "player");
+        playerCardsDiv.appendChild(img);
+      }
+    }
+
+    // =====================================================
+    // Hand Evaluation Functions
+    // =====================================================
+    function isFlush(hand) {
+      return hand.every(card => card.suit === hand[0].suit);
+    }
+
+    function isStraight(hand) {
+      let values = hand.map(card => getRankValue(card.rank));
+      values.sort((a, b) => a - b);
+      if (values[1] === values[0] + 1 && values[2] === values[1] + 1) return true;
+      if (values.includes(14)) {
+        let altValues = values.map(v => v===14 ? 1 : v);
+        altValues.sort((a, b) => a - b);
+        if (altValues[1] === altValues[0] + 1 && altValues[2] === altValues[1] + 1) return true;
+      }
+      return false;
+    }
+
+    function isThreeOfAKind(hand) {
+      return hand[0].rank === hand[1].rank && hand[1].rank === hand[2].rank;
+    }
+
+    function isPair(hand) {
+      return (hand[0].rank === hand[1].rank ||
+              hand[0].rank === hand[2].rank ||
+              hand[1].rank === hand[2].rank);
+    }
+
+    function evaluateHand(hand) {
+      let sorted = hand.slice().sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
+      if (isStraight(hand) && isFlush(hand)) {
+        let values = hand.map(card => getRankValue(card.rank)).sort((a, b) => a - b);
+        let highCard = values[2];
+        if (values.includes(14)) {
+          let altValues = values.map(v => v===14 ? 1 : v).sort((a, b) => a - b);
+          if (altValues[2] === 3) highCard = 3;
+        }
+        return { type: 6, tiebreakers: [highCard] };
+      } else if (isThreeOfAKind(hand)) {
+        return { type: 5, tiebreakers: [getRankValue(hand[0].rank)] };
+      } else if (isStraight(hand)) {
+        let values = hand.map(card => getRankValue(card.rank)).sort((a, b) => a - b);
+        let highCard = values[2];
+        if (values.includes(14)) {
+          let altValues = values.map(v => v===14 ? 1 : v).sort((a, b) => a - b);
+          if (altValues[2] === 3) highCard = 3;
+        }
+        return { type: 4, tiebreakers: [highCard] };
+      } else if (isFlush(hand)) {
+        let values = sorted.map(card => getRankValue(card.rank));
+        return { type: 3, tiebreakers: values };
+      } else if (isPair(hand)) {
+        let pairRank = 0, kicker = 0;
+        if (hand[0].rank === hand[1].rank) {
+          pairRank = getRankValue(hand[0].rank);
+          kicker = getRankValue(hand[2].rank);
+        } else if (hand[0].rank === hand[2].rank) {
+          pairRank = getRankValue(hand[0].rank);
+          kicker = getRankValue(hand[1].rank);
+        } else {
+          pairRank = getRankValue(hand[1].rank);
+          kicker = getRankValue(hand[0].rank);
+        }
+        return { type: 2, tiebreakers: [pairRank, kicker] };
+      } else {
+        let values = sorted.map(card => getRankValue(card.rank));
+        return { type: 1, tiebreakers: values };
+      }
+    }
+
+    function getHandTypeName(type) {
+      switch(type) {
+        case 6: return "Straight Flush";
+        case 5: return "Three-of-a-Kind";
+        case 4: return "Straight";
+        case 3: return "Flush";
+        case 2: return "Pair";
+        case 1: return "High Card";
+        default: return "";
+      }
+    }
+
+    function compareHands(handA, handB) {
+      let evalA = evaluateHand(handA);
+      let evalB = evaluateHand(handB);
+      if (evalA.type > evalB.type) return 1;
+      if (evalA.type < evalB.type) return -1;
+      for (let i = 0; i < Math.max(evalA.tiebreakers.length, evalB.tiebreakers.length); i++) {
+        let a = evalA.tiebreakers[i] || 0;
+        let b = evalB.tiebreakers[i] || 0;
+        if (a > b) return 1;
+        if (a < b) return -1;
+      }
+      return 0;
+    }
+
+    // =====================================================
+    // Dealer's "House Way" Hand Splitting
+    // =====================================================
+    function dealerSplit(cards) {
+      function removeCards(source, cardsToRemove) {
+        let remaining = source.slice();
+        for (let rem of cardsToRemove) {
+          let idx = remaining.findIndex(c => c.rank === rem.rank && c.suit === rem.suit);
+          if (idx > -1) remaining.splice(idx, 1);
+        }
+        return remaining;
+      }
+      let rankCounts = {};
+      for (let card of cards) {
+        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+      }
+      for (let rank in rankCounts) {
+        if (rankCounts[rank] === 4) {
+          let fourCards = cards.filter(c => c.rank === rank);
+          let nonDiamond = fourCards.filter(c => c.suit !== '♦');
+          if (nonDiamond.length >= 3) {
+            let chosen = nonDiamond.slice(0, 3);
+            let remaining = removeCards(cards, chosen);
+            return { hand1: chosen, hand2: remaining };
+          }
+        }
+      }
+      let combos = getCombinations(cards, 3);
+      let straightFlushCombos = combos.filter(c => isStraight(c) && isFlush(c));
+      if (straightFlushCombos.length > 0) {
+        straightFlushCombos.sort((a, b) => evaluateHand(b).tiebreakers[0] - evaluateHand(a).tiebreakers[0]);
+        let chosen = straightFlushCombos[0];
+        let remaining = removeCards(cards, chosen);
+        return { hand1: chosen, hand2: remaining };
+      }
+      let threeOfAKindCombos = combos.filter(c => isThreeOfAKind(c));
+      if (threeOfAKindCombos.length > 0) {
+        threeOfAKindCombos.sort((a, b) => getRankValue(a[0].rank) - getRankValue(b[0].rank));
+        let chosen = threeOfAKindCombos[threeOfAKindCombos.length - 1];
+        let remaining = removeCards(cards, chosen);
+        return { hand1: chosen, hand2: remaining };
+      }
+      let straightCombos = combos.filter(c => isStraight(c));
+      if (straightCombos.length > 0) {
+        straightCombos.sort((a, b) => evaluateHand(b).tiebreakers[0] - evaluateHand(a).tiebreakers[0]);
+        let chosen = straightCombos[0];
+        let remaining = removeCards(cards, chosen);
+        return { hand1: chosen, hand2: remaining };
+      }
+      let suitGroups = {};
+      for (let card of cards) {
+        suitGroups[card.suit] = suitGroups[card.suit] || [];
+        suitGroups[card.suit].push(card);
+      }
+      for (let s in suitGroups) {
+        if (suitGroups[s].length >= 3) {
+          suitGroups[s].sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
+          let chosen = suitGroups[s].slice(0, 3);
+          let remaining = removeCards(cards, chosen);
+          return { hand1: chosen, hand2: remaining };
+        }
+      }
+      let pairCombos = combos.filter(c => isPair(c));
+      if (pairCombos.length > 0) {
+        pairCombos.sort((a, b) => {
+          let evalA = evaluateHand(a);
+          let evalB = evaluateHand(b);
+          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) || (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
+        });
+        let chosen = pairCombos[0];
+        let remaining = removeCards(cards, chosen);
+        return { hand1: chosen, hand2: remaining };
+      }
+      let sortedCards = cards.slice().sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
+      let group1 = [sortedCards[0], sortedCards[1]];
+      let group2 = [sortedCards[2], sortedCards[3]];
+      let group3 = [sortedCards[4], sortedCards[5]];
+      let hand1 = [ group1[0], group2[0], group3[1] ];
+      let hand2 = [ group1[1], group2[1], group3[0] ];
+      return { hand1: hand1, hand2: hand2 };
+    }
+
+    function getCombinations(arr, k) {
+      let results = [];
+      function helper(start, combo) {
+        if (combo.length === k) {
+          results.push(combo);
+          return;
+        }
+        for (let i = start; i < arr.length; i++) {
+          helper(i + 1, combo.concat([arr[i]]));
+        }
+      }
+      helper(0, []);
+      return results;
+    }
+
+    // =====================================================
+    // Game Flow: Deal, Submit, Evaluate, and Display Results
+    // =====================================================
+    document.getElementById("dealBtn").addEventListener("click", () => {
+      deck = shuffle(createDeck());
+      // Deal 6 cards each to player and dealer.
+      playerCards = deck.splice(0,6);
+      dealerCards = deck.splice(0,6);
+      // Clear all drop zones and descriptive text.
+      document.getElementById("playerCards").innerHTML = "";
+      document.getElementById("playerHand1").innerHTML = "";
+      document.getElementById("playerHand2").innerHTML = "";
+      document.getElementById("playerHand1Desc").textContent = "";
+      document.getElementById("playerHand2Desc").textContent = "";
+      // Reset dealer display areas.
+      document.getElementById("dealerFaceDown").innerHTML = "";
+      document.getElementById("dealerHandsContainer").style.display = "none";
+      document.getElementById("result").textContent = "";
+      document.getElementById("troubleshootBtn").style.display = "none";
+      updateSubmitStatus();
+      renderPlayerCards();
+
+      // Render 6 face-down cards for the dealer.
+      let dealerFaceDownDiv = document.getElementById("dealerFaceDown");
+      dealerFaceDownDiv.innerHTML = "";
+      for (let i = 0; i < dealerCards.length; i++) {
+        dealerFaceDownDiv.appendChild(createCardBackImage());
+      }
+    });
+
+    document.getElementById("submitBtn").addEventListener("click", () => {
+      // Gather player's assigned cards.
+      let hand1Elems = document.getElementById("playerHand1").children;
+      let hand2Elems = document.getElementById("playerHand2").children;
+      if (hand1Elems.length !== 3 || hand2Elems.length !== 3) {
+        alert("Please assign exactly 3 cards to each hand.");
+        return;
+      }
+      let playerHand1 = [];
+      for (let elem of hand1Elems) {
+        playerHand1.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
+      }
+      let playerHand2 = [];
+      for (let elem of hand2Elems) {
+        playerHand2.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
+      }
+      
+      // Dealer splits its cards using the house rules.
+      let dealerSplitHands = dealerSplit(dealerCards);
+      dealerHand1 = dealerSplitHands.hand1;
+      dealerHand2 = dealerSplitHands.hand2;
+
+      // Hide the face-down dealer cards and reveal the split hands.
+      document.getElementById("dealerFaceDown").style.display = "none";
+      let dealerHandsContainer = document.getElementById("dealerHandsContainer");
+      dealerHandsContainer.style.display = "flex";
+      const dealerHand1Div = document.getElementById("dealerHand1");
+      dealerHand1Div.innerHTML = "";
+      for (let card of dealerHand1) {
+        let img = createCardImage(card, "dealer");
+        img.removeAttribute("draggable");
+        dealerHand1Div.appendChild(img);
+      }
+      const dealerHand2Div = document.getElementById("dealerHand2");
+      dealerHand2Div.innerHTML = "";
+      for (let card of dealerHand2) {
+        let img = createCardImage(card, "dealer");
+        img.removeAttribute("draggable");
+        dealerHand2Div.appendChild(img);
+      }
+
+      // Evaluate hands.
+      let evalPlayer1 = evaluateHand(playerHand1);
+      let evalPlayer2 = evaluateHand(playerHand2);
+      let evalDealer1 = evaluateHand(dealerHand1);
+      let evalDealer2 = evaluateHand(dealerHand2);
+
+      // Determine highest and lowest hands for both sides.
+      let playerHighest, playerLowest;
+      if (compareHands(playerHand1, playerHand2) >= 0) {
+        playerHighest = playerHand1;
+        playerLowest = playerHand2;
+      } else {
+        playerHighest = playerHand2;
+        playerLowest = playerHand1;
+      }
+      let dealerHighest, dealerLowest;
+      if (compareHands(dealerHand1, dealerHand2) >= 0) {
+        dealerHighest = dealerHand1;
+        dealerLowest = dealerHand2;
+      } else {
+        dealerHighest = dealerHand2;
+        dealerLowest = dealerHand1;
+      }
+
+      // Display hand evaluation descriptions.
+      document.getElementById("playerHand1Desc").textContent = "Your Hand: " + getHandTypeName(evaluateHand(playerHand1).type);
+      document.getElementById("playerHand2Desc").textContent = "Your Hand: " + getHandTypeName(evaluateHand(playerHand2).type);
+      document.getElementById("dealerHand1Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand1).type);
+      document.getElementById("dealerHand2Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand2).type);
+
+      // Compare highest hands and lowest hands.
+      let compHigh = compareHands(playerHighest, dealerHighest);
+      let compLow = compareHands(playerLowest, dealerLowest);
+
+      let resultText = "";
+      if (compHigh > 0 && compLow > 0) {
+        resultText = "You win! Both your higher and lower hands beat the dealer.";
+      } else if (compHigh < 0 && compLow < 0) {
+        resultText = "Dealer wins. Both dealer hands beat yours.";
+      } else if ((compHigh > 0 && compLow < 0) || (compHigh < 0 && compLow > 0)) {
+        resultText = "Push: one hand wins and one loses.";
+      } else {
+        resultText = "It's a tie!";
+      }
+      document.getElementById("result").textContent = resultText;
+
+      // Build troubleshooting explanation text.
+      troubleshootingText = "Highest Hand Comparison:\n";
+      troubleshootingText += "Player Highest: " + playerHighest.map(c => c.rank + c.suit).join(", ") +
+                             " (" + getHandTypeName(evaluateHand(playerHighest).type) + ")\n";
+      troubleshootingText += "Dealer Highest: " + dealerHighest.map(c => c.rank + c.suit).join(", ") +
+                             " (" + getHandTypeName(evaluateHand(dealerHighest).type) + ")\n";
+      troubleshootingText += "Result: " + (compHigh > 0 ? "Player wins" : compHigh < 0 ? "Dealer wins" : "Tie") + "\n\n";
+      troubleshootingText += "Lowest Hand Comparison:\n";
+      troubleshootingText += "Player Lowest: " + playerLowest.map(c => c.rank + c.suit).join(", ") +
+                             " (" + getHandTypeName(evaluateHand(playerLowest).type) + ")\n";
+      troubleshootingText += "Dealer Lowest: " + dealerLowest.map(c => c.rank + c.suit).join(", ") +
+                             " (" + getHandTypeName(evaluateHand(dealerLowest).type) + ")\n";
+      troubleshootingText += "Result: " + (compLow > 0 ? "Player wins" : compLow < 0 ? "Dealer wins" : "Tie") + "\n\n";
+      troubleshootingText += "Overall Result: " + resultText + "\n";
+      troubleshootingText += "Note: The highest player hand was pitted against the highest dealer hand, and the lower against the lower.";
+
+      document.getElementById("troubleshootBtn").style.display = "inline-block";
+    });
+
+    document.getElementById("troubleshootBtn").addEventListener("click", () => {
+      alert(troubleshootingText);
+    });
+  </script>
+</body>
+</html>
