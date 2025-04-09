@@ -25,7 +25,7 @@
       height: auto;
       margin: 5px;
       cursor: grab;
-      touch-action: none; /* Prevent default touch behavior */
+      touch-action: none;
     }
     /* Container and Drop Zone Styling */
     .container {
@@ -38,7 +38,7 @@
     .drop-zone {
       border: 2px dashed #aaa;
       min-height: 110px;
-      min-width: 70px; /* Added as requested */
+      min-width: 70px;
       padding: 10px;
       display: flex;
       flex-wrap: wrap;
@@ -137,18 +137,18 @@
   </footer>
 
   <script>
-    // =====================================================
-    // Prevent accidental refresh (beforeunload confirmation)
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Refresh Protection: Confirmation on page refresh.
+    --------------------------------------------------------------------- */
     window.addEventListener("beforeunload", function (e) {
       var confirmationMessage = "Are you sure you want to refresh? Your game will be lost.";
       (e || window.event).returnValue = confirmationMessage;
       return confirmationMessage;
     });
 
-    // =====================================================
-    // Utility functions, Deck, and Card Definitions
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Utility Functions, Deck, and Card Definitions.
+    --------------------------------------------------------------------- */
     const suits = ['♠', '♥', '♦', '♣'];
     const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     const suitMapping = { '♠': 'Spades', '♥': 'Hearts', '♦': 'Diamonds', '♣': 'Clubs' };
@@ -157,13 +157,12 @@
       let deck = [];
       for (let suit of suits) {
         for (let rank of ranks) {
-          deck.push({rank: rank, suit: suit});
+          deck.push({ rank: rank, suit: suit });
         }
       }
       return deck;
     }
 
-    // Fisher–Yates Shuffle
     function shuffle(deck) {
       for (let i = deck.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1));
@@ -180,9 +179,20 @@
       return parseInt(rank);
     }
 
-    // =====================================================
-    // Global Game State Variables
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Baccarat Value Function: Returns a card’s Baccarat value.
+         - A = 1; 2-9 are as numeric; 10, J, Q, K = 0.
+    --------------------------------------------------------------------- */
+    function baccaratValue(card) {
+      let r = card.rank;
+      if (r === "A") return 1;
+      if (["10", "J", "Q", "K"].includes(r)) return 0;
+      return parseInt(r);
+    }
+
+    /* ---------------------------------------------------------------------
+       Global Game State Variables.
+    --------------------------------------------------------------------- */
     let deck = [];
     let playerCards = [];
     let dealerCards = [];
@@ -191,15 +201,15 @@
     let troubleshootingText = "";
     let cardIdCounter = 0;
 
-    // =====================================================
-    // Mobile/Pointer Drag & Drop Implementation (for non-mouse pointers)
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Mobile/Pointer Drag & Drop Implementation.
+         - Uses pointer events for touch/pen devices (skips mouse).
+    --------------------------------------------------------------------- */
     let currentDraggedElem = null;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
 
     function onPointerDown(e) {
-      // Only handle non-mouse pointers (e.g., touch, pen)
       if (e.pointerType === "mouse") return;
       currentDraggedElem = e.target;
       currentDraggedElem.setPointerCapture(e.pointerId);
@@ -221,23 +231,19 @@
 
     function onPointerUp(e) {
       if (!currentDraggedElem || e.pointerType === "mouse") return;
-      // Temporarily hide the dragged element so it doesn't block underlying elements.
       currentDraggedElem.style.display = "none";
       let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
       currentDraggedElem.style.display = "";
-      // Traverse up the DOM tree until a drop zone is found.
       while (dropTarget && !dropTarget.classList.contains("drop-zone")) {
         dropTarget = dropTarget.parentElement;
       }
       if (dropTarget) {
-        // If drop zone is for a hand and already has 3 cards, redirect to the unassigned area.
         if ((dropTarget.id === "playerHand1" || dropTarget.id === "playerHand2") &&
             dropTarget.childElementCount >= 3) {
           dropTarget = document.getElementById("playerCards");
         }
         dropTarget.appendChild(currentDraggedElem);
       } else {
-        // No valid drop zone, return to the unassigned area.
         document.getElementById("playerCards").appendChild(currentDraggedElem);
       }
       currentDraggedElem.style.position = '';
@@ -249,9 +255,11 @@
       updateSubmitStatus();
     }
 
-    // =====================================================
-    // Card Image Creation for Face-Up Cards & Card Back
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Card Image Creation Functions.
+         - createCardImage: for face‑up cards; adds native drag and pointer events.
+         - createCardBackImage: creates a face‑down card element.
+    --------------------------------------------------------------------- */
     function createCardImage(card, containerType = 'player') {
       let img = document.createElement('img');
       img.classList.add('card');
@@ -260,10 +268,8 @@
       img.dataset.suit = card.suit;
       img.src = "assets/card" + suitMapping[card.suit] + card.rank + ".png";
       if (containerType === 'player') {
-        // Native drag support for mouse-driven devices.
         img.setAttribute("draggable", "true");
         img.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", e.target.id));
-        // Add pointer events for touch/pen.
         img.addEventListener("pointerdown", onPointerDown);
         img.addEventListener("pointermove", onPointerMove);
         img.addEventListener("pointerup", onPointerUp);
@@ -278,9 +284,9 @@
       return img;
     }
 
-    // =====================================================
-    // Standard Drag & Drop Handlers for Desktop (fallback)
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Standard Drag & Drop Handlers for Desktop (Fallback).
+    --------------------------------------------------------------------- */
     function dragOver(e) {
       e.preventDefault();
       e.currentTarget.classList.add("highlight");
@@ -314,9 +320,9 @@
       document.getElementById("submitBtn").disabled = !(hand1Count === 3 && hand2Count === 3);
     }
 
-    // =====================================================
-    // Rendering the Player's Unassigned Cards
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Rendering the Player's Unassigned Cards.
+    --------------------------------------------------------------------- */
     function renderPlayerCards() {
       const playerCardsDiv = document.getElementById("playerCards");
       playerCardsDiv.innerHTML = "";
@@ -327,20 +333,22 @@
       }
     }
 
-    // =====================================================
-    // Hand Evaluation Functions
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Hand Evaluation Functions.
+         - The new evaluateHand function follows:
+           * For straight flush, three-of-a-kind, straight, flush, the rules remain.
+           * For pairs (type 2): kicker is based on baccaratValue if ≥7, else numeric.
+           * For high card (type 1): the total is computed as (sum of Baccarat values) mod 10.
+    --------------------------------------------------------------------- */
     function isFlush(hand) {
       return hand.every(card => card.suit === hand[0].suit);
     }
     function isStraight(hand) {
-      let values = hand.map(card => getRankValue(card.rank));
-      values.sort((a, b) => a - b);
+      let values = hand.map(card => getRankValue(card.rank)).sort((a, b) => a - b);
       if (values[1] === values[0] + 1 && values[2] === values[1] + 1) return true;
       if (values.includes(14)) {
-        let altValues = values.map(v => v === 14 ? 1 : v);
-        altValues.sort((a, b) => a - b);
-        if (altValues[1] === altValues[0] + 1 && altValues[2] === altValues[1] + 1) return true;
+        let altValues = values.map(v => v === 14 ? 1 : v).sort((a, b) => a - b);
+        return (altValues[1] === altValues[0] + 1 && altValues[2] === altValues[1] + 1);
       }
       return false;
     }
@@ -352,6 +360,7 @@
               hand[0].rank === hand[2].rank ||
               hand[1].rank === hand[2].rank);
     }
+
     function evaluateHand(hand) {
       let sorted = hand.slice().sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
       if (isStraight(hand) && isFlush(hand)) {
@@ -376,25 +385,29 @@
         let values = sorted.map(card => getRankValue(card.rank));
         return { type: 3, tiebreakers: values };
       } else if (isPair(hand)) {
-        let pairRank = 0, kicker = 0;
+        let pairRank = 0, kickerCard = null;
         if (hand[0].rank === hand[1].rank) {
           pairRank = getRankValue(hand[0].rank);
-          kicker = getRankValue(hand[2].rank);
+          kickerCard = hand[2];
         } else if (hand[0].rank === hand[2].rank) {
           pairRank = getRankValue(hand[0].rank);
-          kicker = getRankValue(hand[1].rank);
+          kickerCard = hand[1];
         } else {
           pairRank = getRankValue(hand[1].rank);
-          kicker = getRankValue(hand[0].rank);
+          kickerCard = hand[0];
         }
-        return { type: 2, tiebreakers: [pairRank, kicker] };
+        let bacc = baccaratValue(kickerCard);
+        let kickerValue = (bacc >= 7 ? bacc : getRankValue(kickerCard));
+        return { type: 2, tiebreakers: [pairRank, kickerValue] };
       } else {
-        let values = sorted.map(card => getRankValue(card.rank));
-        return { type: 1, tiebreakers: values };
+        // High card: sum baccarat values mod 10.
+        let total = (baccaratValue(hand[0]) + baccaratValue(hand[1]) + baccaratValue(hand[2])) % 10;
+        return { type: 1, tiebreakers: [total] };
       }
     }
+
     function getHandTypeName(type) {
-      switch(type) {
+      switch (type) {
         case 6: return "Straight Flush";
         case 5: return "Three-of-a-Kind";
         case 4: return "Straight";
@@ -404,6 +417,7 @@
         default: return "";
       }
     }
+
     function compareHands(handA, handB) {
       let evalA = evaluateHand(handA);
       let evalB = evaluateHand(handB);
@@ -418,9 +432,11 @@
       return 0;
     }
 
-    // =====================================================
-    // Dealer's "House Way" Hand Splitting
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Dealer's "House Way" Hand Splitting.
+         - The rules for straight flush, three-of-a-kind, straight, flush, and pair remain,
+         - For high card, we now choose the 3-card combo with a Baccarat total of 9, 8, or 7 if possible.
+    --------------------------------------------------------------------- */
     function dealerSplit(cards) {
       function removeCards(source, cardsToRemove) {
         let remaining = source.slice();
@@ -430,6 +446,7 @@
         }
         return remaining;
       }
+      // Four-of-a-Kind Special Handling.
       let rankCounts = {};
       for (let card of cards) {
         rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
@@ -446,6 +463,7 @@
         }
       }
       let combos = getCombinations(cards, 3);
+      // Check for Straight Flush.
       let straightFlushCombos = combos.filter(c => isStraight(c) && isFlush(c));
       if (straightFlushCombos.length > 0) {
         straightFlushCombos.sort((a, b) => evaluateHand(b).tiebreakers[0] - evaluateHand(a).tiebreakers[0]);
@@ -453,6 +471,7 @@
         let remaining = removeCards(cards, chosen);
         return { hand1: chosen, hand2: remaining };
       }
+      // Three-of-a-Kind.
       let threeOfAKindCombos = combos.filter(c => isThreeOfAKind(c));
       if (threeOfAKindCombos.length > 0) {
         threeOfAKindCombos.sort((a, b) => getRankValue(a[0].rank) - getRankValue(b[0].rank));
@@ -460,6 +479,7 @@
         let remaining = removeCards(cards, chosen);
         return { hand1: chosen, hand2: remaining };
       }
+      // Straight.
       let straightCombos = combos.filter(c => isStraight(c));
       if (straightCombos.length > 0) {
         straightCombos.sort((a, b) => evaluateHand(b).tiebreakers[0] - evaluateHand(a).tiebreakers[0]);
@@ -467,6 +487,7 @@
         let remaining = removeCards(cards, chosen);
         return { hand1: chosen, hand2: remaining };
       }
+      // Flush.
       let suitGroups = {};
       for (let card of cards) {
         suitGroups[card.suit] = suitGroups[card.suit] || [];
@@ -480,25 +501,45 @@
           return { hand1: chosen, hand2: remaining };
         }
       }
+      // Pair.
       let pairCombos = combos.filter(c => isPair(c));
       if (pairCombos.length > 0) {
         pairCombos.sort((a, b) => {
           let evalA = evaluateHand(a);
           let evalB = evaluateHand(b);
-          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) || (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
+          return (evalB.tiebreakers[0] - evalA.tiebreakers[0]) ||
+                 (evalB.tiebreakers[1] - evalA.tiebreakers[1]);
         });
         let chosen = pairCombos[0];
         let remaining = removeCards(cards, chosen);
         return { hand1: chosen, hand2: remaining };
       }
-      let sortedCards = cards.slice().sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
-      let group1 = [sortedCards[0], sortedCards[1]];
-      let group2 = [sortedCards[2], sortedCards[3]];
-      let group3 = [sortedCards[4], sortedCards[5]];
-      let hand1 = [ group1[0], group2[0], group3[1] ];
-      let hand2 = [ group1[1], group2[1], group3[0] ];
-      return { hand1: hand1, hand2: hand2 };
+      // High Card Scenario: Look for a combo with Baccarat total of 9, 8, or 7.
+      let bestHigh = null;
+      let bestHighValue = -1;
+      for (let combo of combos) {
+        let total = (baccaratValue(combo[0]) + baccaratValue(combo[1]) + baccaratValue(combo[2])) % 10;
+        if (total >= 7 && total > bestHighValue) {
+          bestHighValue = total;
+          bestHigh = combo;
+          if (total === 9) break;
+        }
+      }
+      if (bestHigh) {
+        let remaining = removeCards(cards, bestHigh);
+        return { hand1: bestHigh, hand2: remaining };
+      } else {
+        // Fallback: default grouping.
+        let sortedCards = cards.slice().sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
+        let group1 = [sortedCards[0], sortedCards[1]];
+        let group2 = [sortedCards[2], sortedCards[3]];
+        let group3 = [sortedCards[4], sortedCards[5]];
+        let hand1 = [ group1[0], group2[0], group3[1] ];
+        let hand2 = [ group1[1], group2[1], group3[0] ];
+        return { hand1: hand1, hand2: hand2 };
+      }
     }
+
     function getCombinations(arr, k) {
       let results = [];
       function helper(start, combo) {
@@ -514,15 +555,13 @@
       return results;
     }
 
-    // =====================================================
-    // Game Flow: Deal, Submit, Evaluate, and Display Results
-    // =====================================================
+    /* ---------------------------------------------------------------------
+       Game Flow: Deal, Submit, Evaluate, and Display Results.
+    --------------------------------------------------------------------- */
     document.getElementById("dealBtn").addEventListener("click", () => {
       deck = shuffle(createDeck());
-      // Deal 6 cards to player and dealer.
       playerCards = deck.splice(0, 6);
       dealerCards = deck.splice(0, 6);
-      // Clear drop zones and text.
       document.getElementById("playerCards").innerHTML = "";
       document.getElementById("playerHand1").innerHTML = "";
       document.getElementById("playerHand2").innerHTML = "";
@@ -534,7 +573,6 @@
       document.getElementById("troubleshootBtn").style.display = "none";
       updateSubmitStatus();
       renderPlayerCards();
-      // Render dealer's 6 face-down cards.
       let dealerFaceDownDiv = document.getElementById("dealerFaceDown");
       dealerFaceDownDiv.innerHTML = "";
       for (let i = 0; i < dealerCards.length; i++) {
@@ -544,107 +582,108 @@
     });
 
     document.getElementById("submitBtn").addEventListener("click", () => {
-      let hand1Elems = document.getElementById("playerHand1").children;
-      let hand2Elems = document.getElementById("playerHand2").children;
-      if (hand1Elems.length !== 3 || hand2Elems.length !== 3) {
-        alert("Please assign exactly 3 cards to each hand.");
-        return;
-      }
-      let playerHand1 = [];
-      for (let elem of hand1Elems) {
-        playerHand1.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
-      }
-      let playerHand2 = [];
-      for (let elem of hand2Elems) {
-        playerHand2.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
-      }
-      
-      // Dealer splits its cards.
-      let dealerSplitHands = dealerSplit(dealerCards);
-      dealerHand1 = dealerSplitHands.hand1;
-      dealerHand2 = dealerSplitHands.hand2;
+      try {
+        let hand1Elems = document.getElementById("playerHand1").children;
+        let hand2Elems = document.getElementById("playerHand2").children;
+        if (hand1Elems.length !== 3 || hand2Elems.length !== 3) {
+          alert("Please assign exactly 3 cards to each hand.");
+          return;
+        }
+        let playerHand1 = [];
+        for (let elem of hand1Elems) {
+          playerHand1.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
+        }
+        let playerHand2 = [];
+        for (let elem of hand2Elems) {
+          playerHand2.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
+        }
 
-      // Hide face-down dealer cards and reveal split hands.
-      document.getElementById("dealerFaceDown").style.display = "none";
-      let dealerHandsContainer = document.getElementById("dealerHandsContainer");
-      dealerHandsContainer.style.display = "flex";
-      const dealerHand1Div = document.getElementById("dealerHand1");
-      dealerHand1Div.innerHTML = "";
-      for (let card of dealerHand1) {
-        let img = createCardImage(card, "dealer");
-        img.removeAttribute("draggable");
-        dealerHand1Div.appendChild(img);
+        let dealerSplitHands = dealerSplit(dealerCards);
+        dealerHand1 = dealerSplitHands.hand1;
+        dealerHand2 = dealerSplitHands.hand2;
+
+        // Hide face-down and reveal dealer split hands.
+        document.getElementById("dealerFaceDown").style.display = "none";
+        let dealerHandsContainer = document.getElementById("dealerHandsContainer");
+        dealerHandsContainer.style.display = "flex";
+        const dealerHand1Div = document.getElementById("dealerHand1");
+        dealerHand1Div.innerHTML = "";
+        for (let card of dealerHand1) {
+          let img = createCardImage(card, "dealer");
+          img.removeAttribute("draggable");
+          dealerHand1Div.appendChild(img);
+        }
+        const dealerHand2Div = document.getElementById("dealerHand2");
+        dealerHand2Div.innerHTML = "";
+        for (let card of dealerHand2) {
+          let img = createCardImage(card, "dealer");
+          img.removeAttribute("draggable");
+          dealerHand2Div.appendChild(img);
+        }
+
+        // Evaluate hands once and store results.
+        let evalPlayer1 = evaluateHand(playerHand1);
+        let evalPlayer2 = evaluateHand(playerHand2);
+        let evalDealer1 = evaluateHand(dealerHand1);
+        let evalDealer2 = evaluateHand(dealerHand2);
+
+        document.getElementById("playerHand1Desc").textContent = "Your Hand: " + getHandTypeName(evalPlayer1.type) + " (" + evalPlayer1.tiebreakers[0] + ")";
+        document.getElementById("playerHand2Desc").textContent = "Your Hand: " + getHandTypeName(evalPlayer2.type) + " (" + evalPlayer2.tiebreakers[0] + ")";
+        document.getElementById("dealerHand1Desc").textContent = "Dealer Hand: " + getHandTypeName(evalDealer1.type) + " (" + evalDealer1.tiebreakers[0] + ")";
+        document.getElementById("dealerHand2Desc").textContent = "Dealer Hand: " + getHandTypeName(evalDealer2.type) + " (" + evalDealer2.tiebreakers[0] + ")";
+
+        // Determine highest and lowest hands.
+        let playerHighest, playerLowest;
+        if (compareHands(playerHand1, playerHand2) >= 0) {
+          playerHighest = playerHand1;
+          playerLowest = playerHand2;
+        } else {
+          playerHighest = playerHand2;
+          playerLowest = playerHand1;
+        }
+        let dealerHighest, dealerLowest;
+        if (compareHands(dealerHand1, dealerHand2) >= 0) {
+          dealerHighest = dealerHand1;
+          dealerLowest = dealerHand2;
+        } else {
+          dealerHighest = dealerHand2;
+          dealerLowest = dealerHand1;
+        }
+
+        let compHigh = compareHands(playerHighest, dealerHighest);
+        let compLow = compareHands(playerLowest, dealerLowest);
+        let resultText = "";
+        if (compHigh > 0 && compLow > 0) {
+          resultText = "You win! Both your higher and lower hands beat the dealer.";
+        } else if (compHigh < 0 && compLow < 0) {
+          resultText = "Dealer wins. Both dealer hands beat yours.";
+        } else if ((compHigh > 0 && compLow < 0) || (compHigh < 0 && compLow > 0)) {
+          resultText = "Push: one hand wins and one loses.";
+        } else {
+          resultText = "It's a tie!";
+        }
+        document.getElementById("result").textContent = resultText;
+
+        troubleshootingText = "Highest Hand Comparison:\n";
+        troubleshootingText += "Player Highest: " + playerHighest.map(c => c.rank + c.suit).join(", ") +
+                               " (" + getHandTypeName(evaluateHand(playerHighest).type) + " - " + evaluateHand(playerHighest).tiebreakers[0] + ")\n";
+        troubleshootingText += "Dealer Highest: " + dealerHighest.map(c => c.rank + c.suit).join(", ") +
+                               " (" + getHandTypeName(evaluateHand(dealerHighest).type) + " - " + evaluateHand(dealerHighest).tiebreakers[0] + ")\n";
+        troubleshootingText += "Result: " + (compHigh > 0 ? "Player wins" : compHigh < 0 ? "Dealer wins" : "Tie") + "\n\n";
+        troubleshootingText += "Lowest Hand Comparison:\n";
+        troubleshootingText += "Player Lowest: " + playerLowest.map(c => c.rank + c.suit).join(", ") +
+                               " (" + getHandTypeName(evaluateHand(playerLowest).type) + " - " + evaluateHand(playerLowest).tiebreakers[0] + ")\n";
+        troubleshootingText += "Dealer Lowest: " + dealerLowest.map(c => c.rank + c.suit).join(", ") +
+                               " (" + getHandTypeName(evaluateHand(dealerLowest).type) + " - " + evaluateHand(dealerLowest).tiebreakers[0] + ")\n";
+        troubleshootingText += "Result: " + (compLow > 0 ? "Player wins" : compLow < 0 ? "Dealer wins" : "Tie") + "\n\n";
+        troubleshootingText += "Overall Result: " + resultText + "\n";
+        troubleshootingText += "Note: The highest player hand was pitted against the highest dealer hand, and the lower against the lower.";
+
+        document.getElementById("troubleshootBtn").style.display = "inline-block";
+      } catch (err) {
+        console.error("Error during submission:", err);
+        alert("An error occurred during hand evaluation. Check the console for details.");
       }
-      const dealerHand2Div = document.getElementById("dealerHand2");
-      dealerHand2Div.innerHTML = "";
-      for (let card of dealerHand2) {
-        let img = createCardImage(card, "dealer");
-        img.removeAttribute("draggable");
-        dealerHand2Div.appendChild(img);
-      }
-
-      // Evaluate hands.
-      let evalPlayer1 = evaluateHand(playerHand1);
-      let evalPlayer2 = evaluateHand(playerHand2);
-      let evalDealer1 = evaluateHand(dealerHand1);
-      let evalDealer2 = evaluateHand(dealerHand2);
-
-      // Determine highest and lowest hands for each side.
-      let playerHighest, playerLowest;
-      if (compareHands(playerHand1, playerHand2) >= 0) {
-        playerHighest = playerHand1;
-        playerLowest = playerHand2;
-      } else {
-        playerHighest = playerHand2;
-        playerLowest = playerHand1;
-      }
-      let dealerHighest, dealerLowest;
-      if (compareHands(dealerHand1, dealerHand2) >= 0) {
-        dealerHighest = dealerHand1;
-        dealerLowest = dealerHand2;
-      } else {
-        dealerHighest = dealerHand2;
-        dealerLowest = dealerHand1;
-      }
-
-      // Display hand evaluations.
-      document.getElementById("playerHand1Desc").textContent = "Your Hand: " + getHandTypeName(evaluateHand(playerHand1).type);
-      document.getElementById("playerHand2Desc").textContent = "Your Hand: " + getHandTypeName(evaluateHand(playerHand2).type);
-      document.getElementById("dealerHand1Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand1).type);
-      document.getElementById("dealerHand2Desc").textContent = "Dealer Hand: " + getHandTypeName(evaluateHand(dealerHand2).type);
-
-      // Compare highest and lowest hands.
-      let compHigh = compareHands(playerHighest, dealerHighest);
-      let compLow = compareHands(playerLowest, dealerLowest);
-      let resultText = "";
-      if (compHigh > 0 && compLow > 0) {
-        resultText = "You win! Both your higher and lower hands beat the dealer.";
-      } else if (compHigh < 0 && compLow < 0) {
-        resultText = "Dealer wins. Both dealer hands beat yours.";
-      } else if ((compHigh > 0 && compLow < 0) || (compHigh < 0 && compLow > 0)) {
-        resultText = "Push: one hand wins and one loses.";
-      } else {
-        resultText = "It's a tie!";
-      }
-      document.getElementById("result").textContent = resultText;
-
-      // Build troubleshooting explanation text.
-      troubleshootingText = "Highest Hand Comparison:\n";
-      troubleshootingText += "Player Highest: " + playerHighest.map(c => c.rank + c.suit).join(", ") +
-                             " (" + getHandTypeName(evaluateHand(playerHighest).type) + ")\n";
-      troubleshootingText += "Dealer Highest: " + dealerHighest.map(c => c.rank + c.suit).join(", ") +
-                             " (" + getHandTypeName(evaluateHand(dealerHighest).type) + ")\n";
-      troubleshootingText += "Result: " + (compHigh > 0 ? "Player wins" : compHigh < 0 ? "Dealer wins" : "Tie") + "\n\n";
-      troubleshootingText += "Lowest Hand Comparison:\n";
-      troubleshootingText += "Player Lowest: " + playerLowest.map(c => c.rank + c.suit).join(", ") +
-                             " (" + getHandTypeName(evaluateHand(playerLowest).type) + ")\n";
-      troubleshootingText += "Dealer Lowest: " + dealerLowest.map(c => c.rank + c.suit).join(", ") +
-                             " (" + getHandTypeName(evaluateHand(dealerLowest).type) + ")\n";
-      troubleshootingText += "Result: " + (compLow > 0 ? "Player wins" : compLow < 0 ? "Dealer wins" : "Tie") + "\n\n";
-      troubleshootingText += "Overall Result: " + resultText + "\n";
-      troubleshootingText += "Note: The highest player hand was pitted against the highest dealer hand, and the lower against the lower.";
-
-      document.getElementById("troubleshootBtn").style.display = "inline-block";
     });
 
     document.getElementById("troubleshootBtn").addEventListener("click", () => {
