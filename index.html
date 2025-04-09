@@ -4,20 +4,27 @@
   <meta charset="utf-8">
   <title>Three Card Hand Game</title>
   <style>
-    /* Global Styles */
+    /* Global Styles: Poker Table Look */
     body {
-      font-family: Arial, sans-serif;
+      background: url("assets/greenFelt.jpg") no-repeat center center fixed;
+      background-size: cover;
       margin: 20px;
-      background: #f7f7f7;
+      font-family: Arial, sans-serif;
     }
     h1, h2, h3 {
       margin-bottom: 10px;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000;
     }
     button {
       padding: 10px 15px;
       margin: 5px;
       cursor: pointer;
       font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #004d00;
+      color: #fff;
     }
     /* Card Image Styling */
     .card {
@@ -25,24 +32,28 @@
       height: auto;
       margin: 5px;
       cursor: grab;
-      touch-action: none;
+      touch-action: none; /* Prevent default touch behavior */
+      box-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+      border-radius: 5px;
     }
     /* Container and Drop Zone Styling */
     .container {
       margin-bottom: 20px;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.9);
       padding: 10px;
-      border-radius: 5px;
-      box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     .drop-zone {
       border: 2px dashed #aaa;
       min-height: 110px;
-      min-width: 70px;
+      min-width: 70px;  /* As requested */
       padding: 10px;
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
+      background: rgba(255,255,255,0.7);
+      border-radius: 5px;
     }
     .drop-zone.highlight {
       border-color: #4CAF50;
@@ -61,6 +72,8 @@
     .hand-desc {
       margin-top: 5px;
       font-weight: bold;
+      color: #004d00;
+      text-shadow: 1px 1px 1px #fff;
     }
     .flex-row {
       display: flex;
@@ -73,13 +86,14 @@
       margin-top: 40px;
       padding-top: 10px;
       border-top: 1px solid #ccc;
-      color: #555;
+      color: #fff;
+      text-shadow: 1px 1px 1px #000;
     }
   </style>
 </head>
 <body>
   <h1>Three Card Hand Game</h1>
-  <p>Objective: Form two three‑card hands that both beat the dealer’s corresponding hands.</p>
+  <p style="color:#fff; text-shadow:1px 1px 2px #000;">Objective: Form two three‑card hands (one High and one Low) that both beat the corresponding dealer hands.</p>
   <button id="dealBtn">Deal Cards</button>
 
   <!-- Player Cards and Hands -->
@@ -91,10 +105,12 @@
   <div class="container">
     <h2>Your Hands:</h2>
     <div id="playerHands" class="flex-container">
+      <!-- Left column will display the Low Hand -->
       <div class="hand-column">
          <div id="playerHand1" class="drop-zone"></div>
          <div id="playerHand1Desc" class="hand-desc"></div>
       </div>
+      <!-- Right column will display the High Hand -->
       <div class="hand-column">
          <div id="playerHand2" class="drop-zone"></div>
          <div id="playerHand2Desc" class="hand-desc"></div>
@@ -113,10 +129,12 @@
     <div id="dealerFaceDown" class="flex-row" style="justify-content: center;"></div>
     <!-- After submission, show split hands -->
     <div id="dealerHandsContainer" class="flex-container" style="display: none;">
+      <!-- Left: Dealer Low Hand -->
       <div class="hand-column">
          <div id="dealerHand1" class="flex-row"></div>
          <div id="dealerHand1Desc" class="hand-desc"></div>
       </div>
+      <!-- Right: Dealer High Hand -->
       <div class="hand-column">
          <div id="dealerHand2" class="flex-row"></div>
          <div id="dealerHand2Desc" class="hand-desc"></div>
@@ -138,7 +156,7 @@
 
   <script>
     /* ---------------------------------------------------------------------
-       Refresh Protection: Confirmation on page refresh.
+       Refresh Protection: Warn user before accidental refresh.
     --------------------------------------------------------------------- */
     window.addEventListener("beforeunload", function (e) {
       var confirmationMessage = "Are you sure you want to refresh? Your game will be lost.";
@@ -180,8 +198,8 @@
     }
 
     /* ---------------------------------------------------------------------
-       Baccarat Value Function: Returns a card’s Baccarat value.
-         - A = 1; 2-9 are as numeric; 10, J, Q, K = 0.
+       Baccarat Value Function.
+         - A = 1; 2-9: numeric; 10, J, Q, K = 0.
     --------------------------------------------------------------------- */
     function baccaratValue(card) {
       let r = card.rank;
@@ -202,8 +220,7 @@
     let cardIdCounter = 0;
 
     /* ---------------------------------------------------------------------
-       Mobile/Pointer Drag & Drop Implementation.
-         - Uses pointer events for touch/pen devices (skips mouse).
+       Mobile/Pointer Drag & Drop Implementation (for touch/pen).
     --------------------------------------------------------------------- */
     let currentDraggedElem = null;
     let dragOffsetX = 0;
@@ -231,6 +248,7 @@
 
     function onPointerUp(e) {
       if (!currentDraggedElem || e.pointerType === "mouse") return;
+      // Hide element briefly to detect drop zone.
       currentDraggedElem.style.display = "none";
       let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
       currentDraggedElem.style.display = "";
@@ -257,8 +275,8 @@
 
     /* ---------------------------------------------------------------------
        Card Image Creation Functions.
-         - createCardImage: for face‑up cards; adds native drag and pointer events.
-         - createCardBackImage: creates a face‑down card element.
+         - createCardImage: for face–up cards; adds native drag events and pointer events.
+         - createCardBackImage: creates a face–down card.
     --------------------------------------------------------------------- */
     function createCardImage(card, containerType = 'player') {
       let img = document.createElement('img');
@@ -285,7 +303,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       Standard Drag & Drop Handlers for Desktop (Fallback).
+       Standard Desktop Drag & Drop Handlers (Fallback).
     --------------------------------------------------------------------- */
     function dragOver(e) {
       e.preventDefault();
@@ -335,10 +353,9 @@
 
     /* ---------------------------------------------------------------------
        Hand Evaluation Functions.
-         - The new evaluateHand function follows:
-           * For straight flush, three-of-a-kind, straight, flush, the rules remain.
-           * For pairs (type 2): kicker is based on baccaratValue if ≥7, else numeric.
-           * For high card (type 1): the total is computed as (sum of Baccarat values) mod 10.
+         - For straight flush, three-of-a-kind, straight, and flush the rules remain.
+         - For pairs (type 2): kicker is based on baccaratValue if ≥7, else traditional numeric.
+         - For high card (type 1): sum the Baccarat values mod 10.
     --------------------------------------------------------------------- */
     function isFlush(hand) {
       return hand.every(card => card.suit === hand[0].suit);
@@ -400,7 +417,7 @@
         let kickerValue = (bacc >= 7 ? bacc : getRankValue(kickerCard));
         return { type: 2, tiebreakers: [pairRank, kickerValue] };
       } else {
-        // High card: sum baccarat values mod 10.
+        // High card: sum of baccarat values mod 10.
         let total = (baccaratValue(hand[0]) + baccaratValue(hand[1]) + baccaratValue(hand[2])) % 10;
         return { type: 1, tiebreakers: [total] };
       }
@@ -434,8 +451,10 @@
 
     /* ---------------------------------------------------------------------
        Dealer's "House Way" Hand Splitting.
-         - The rules for straight flush, three-of-a-kind, straight, flush, and pair remain,
-         - For high card, we now choose the 3-card combo with a Baccarat total of 9, 8, or 7 if possible.
+         - For non-high card combinations the rules remain.
+         - For high card, search for a 3-card combo with a baccarat total of 9, 8, or 7.
+         - If found, that combo becomes the high (better) hand and the remaining cards form the low hand.
+         - If not, fall back to default grouping.
     --------------------------------------------------------------------- */
     function dealerSplit(cards) {
       function removeCards(source, cardsToRemove) {
@@ -446,7 +465,7 @@
         }
         return remaining;
       }
-      // Four-of-a-Kind Special Handling.
+      // Four-of-a-Kind.
       let rankCounts = {};
       for (let card of cards) {
         rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
@@ -463,7 +482,7 @@
         }
       }
       let combos = getCombinations(cards, 3);
-      // Check for Straight Flush.
+      // Straight Flush.
       let straightFlushCombos = combos.filter(c => isStraight(c) && isFlush(c));
       if (straightFlushCombos.length > 0) {
         straightFlushCombos.sort((a, b) => evaluateHand(b).tiebreakers[0] - evaluateHand(a).tiebreakers[0]);
@@ -514,7 +533,7 @@
         let remaining = removeCards(cards, chosen);
         return { hand1: chosen, hand2: remaining };
       }
-      // High Card Scenario: Look for a combo with Baccarat total of 9, 8, or 7.
+      // High Card: Look for a 3-card combination with a baccarat total of 9, 8, or 7.
       let bestHigh = null;
       let bestHighValue = -1;
       for (let combo of combos) {
@@ -560,8 +579,10 @@
     --------------------------------------------------------------------- */
     document.getElementById("dealBtn").addEventListener("click", () => {
       deck = shuffle(createDeck());
+      // Deal 6 cards to player and dealer.
       playerCards = deck.splice(0, 6);
       dealerCards = deck.splice(0, 6);
+      // Clear drop zones and descriptions.
       document.getElementById("playerCards").innerHTML = "";
       document.getElementById("playerHand1").innerHTML = "";
       document.getElementById("playerHand2").innerHTML = "";
@@ -573,6 +594,7 @@
       document.getElementById("troubleshootBtn").style.display = "none";
       updateSubmitStatus();
       renderPlayerCards();
+      // Render dealer's 6 face-down cards.
       let dealerFaceDownDiv = document.getElementById("dealerFaceDown");
       dealerFaceDownDiv.innerHTML = "";
       for (let i = 0; i < dealerCards.length; i++) {
@@ -589,6 +611,7 @@
           alert("Please assign exactly 3 cards to each hand.");
           return;
         }
+        // Read the player's hands from the drop zones.
         let playerHand1 = [];
         for (let elem of hand1Elems) {
           playerHand1.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
@@ -597,64 +620,87 @@
         for (let elem of hand2Elems) {
           playerHand2.push({ rank: elem.dataset.rank, suit: elem.dataset.suit });
         }
-
+        
+        // Dealer splits its cards.
         let dealerSplitHands = dealerSplit(dealerCards);
         dealerHand1 = dealerSplitHands.hand1;
         dealerHand2 = dealerSplitHands.hand2;
 
-        // Hide face-down and reveal dealer split hands.
+        // First, reveal dealer's hands: clear face–down cards and show split hands.
         document.getElementById("dealerFaceDown").style.display = "none";
         let dealerHandsContainer = document.getElementById("dealerHandsContainer");
         dealerHandsContainer.style.display = "flex";
-        const dealerHand1Div = document.getElementById("dealerHand1");
-        dealerHand1Div.innerHTML = "";
-        for (let card of dealerHand1) {
-          let img = createCardImage(card, "dealer");
-          img.removeAttribute("draggable");
-          dealerHand1Div.appendChild(img);
-        }
-        const dealerHand2Div = document.getElementById("dealerHand2");
-        dealerHand2Div.innerHTML = "";
-        for (let card of dealerHand2) {
-          let img = createCardImage(card, "dealer");
-          img.removeAttribute("draggable");
-          dealerHand2Div.appendChild(img);
-        }
-
-        // Evaluate hands once and store results.
-        let evalPlayer1 = evaluateHand(playerHand1);
-        let evalPlayer2 = evaluateHand(playerHand2);
-        let evalDealer1 = evaluateHand(dealerHand1);
-        let evalDealer2 = evaluateHand(dealerHand2);
-
-        document.getElementById("playerHand1Desc").textContent = "Your Hand: " + getHandTypeName(evalPlayer1.type) + " (" + evalPlayer1.tiebreakers[0] + ")";
-        document.getElementById("playerHand2Desc").textContent = "Your Hand: " + getHandTypeName(evalPlayer2.type) + " (" + evalPlayer2.tiebreakers[0] + ")";
-        document.getElementById("dealerHand1Desc").textContent = "Dealer Hand: " + getHandTypeName(evalDealer1.type) + " (" + evalDealer1.tiebreakers[0] + ")";
-        document.getElementById("dealerHand2Desc").textContent = "Dealer Hand: " + getHandTypeName(evalDealer2.type) + " (" + evalDealer2.tiebreakers[0] + ")";
-
-        // Determine highest and lowest hands.
-        let playerHighest, playerLowest;
-        if (compareHands(playerHand1, playerHand2) >= 0) {
-          playerHighest = playerHand1;
-          playerLowest = playerHand2;
-        } else {
-          playerHighest = playerHand2;
-          playerLowest = playerHand1;
-        }
+        // For dealer, we want the lower–scoring hand on the left and the higher–scoring on the right.
+        let compDealer = compareHands(dealerHand1, dealerHand2);
         let dealerHighest, dealerLowest;
-        if (compareHands(dealerHand1, dealerHand2) >= 0) {
+        if (compDealer >= 0) {
           dealerHighest = dealerHand1;
           dealerLowest = dealerHand2;
         } else {
           dealerHighest = dealerHand2;
           dealerLowest = dealerHand1;
         }
+        // Render dealer's hands into their containers.
+        const dealerLowContainer = document.getElementById("dealerHand1");
+        const dealerHighContainer = document.getElementById("dealerHand2");
+        dealerLowContainer.innerHTML = "";
+        dealerHighContainer.innerHTML = "";
+        dealerLowest.forEach(card => {
+          let img = createCardImage(card, "dealer");
+          img.removeAttribute("draggable");
+          dealerLowContainer.appendChild(img);
+        });
+        dealerHighest.forEach(card => {
+          let img = createCardImage(card, "dealer");
+          img.removeAttribute("draggable");
+          dealerHighContainer.appendChild(img);
+        });
 
+        // Evaluate player's hands.
+        let compPlayer = compareHands(playerHand1, playerHand2);
+        let playerHighest, playerLowest;
+        if (compPlayer >= 0) {
+          playerHighest = playerHand1;
+          playerLowest = playerHand2;
+        } else {
+          playerHighest = playerHand2;
+          playerLowest = playerHand1;
+        }
+        // Reorder player's hand display accordingly.
+        const playerLowContainer = document.getElementById("playerHand1");
+        const playerHighContainer = document.getElementById("playerHand2");
+        playerLowContainer.innerHTML = "";
+        playerHighContainer.innerHTML = "";
+        playerLowest.forEach(card => {
+          let img = createCardImage(card, "player");
+          playerLowContainer.appendChild(img);
+        });
+        playerHighest.forEach(card => {
+          let img = createCardImage(card, "player");
+          playerHighContainer.appendChild(img);
+        });
+
+        // Update the descriptive texts.
+        let evalPlayerLow = evaluateHand(playerLowest);
+        let evalPlayerHigh = evaluateHand(playerHighest);
+        let evalDealerLow = evaluateHand(dealerLowest);
+        let evalDealerHigh = evaluateHand(dealerHighest);
+        
+        document.getElementById("playerHand1Desc").textContent = "Your Low Hand: " 
+            + getHandTypeName(evalPlayerLow.type) + " (" + evalPlayerLow.tiebreakers[0] + ")";
+        document.getElementById("playerHand2Desc").textContent = "Your High Hand: " 
+            + getHandTypeName(evalPlayerHigh.type) + " (" + evalPlayerHigh.tiebreakers[0] + ")";
+        document.getElementById("dealerHand1Desc").textContent = "Dealer Low Hand: " 
+            + getHandTypeName(evalDealerLow.type) + " (" + evalDealerLow.tiebreakers[0] + ")";
+        document.getElementById("dealerHand2Desc").textContent = "Dealer High Hand: " 
+            + getHandTypeName(evalDealerHigh.type) + " (" + evalDealerHigh.tiebreakers[0] + ")";
+
+        // Compare highest and lowest hands.
         let compHigh = compareHands(playerHighest, dealerHighest);
         let compLow = compareHands(playerLowest, dealerLowest);
         let resultText = "";
         if (compHigh > 0 && compLow > 0) {
-          resultText = "You win! Both your higher and lower hands beat the dealer.";
+          resultText = "You win! Both your high and low hands beat the dealer.";
         } else if (compHigh < 0 && compLow < 0) {
           resultText = "Dealer wins. Both dealer hands beat yours.";
         } else if ((compHigh > 0 && compLow < 0) || (compHigh < 0 && compLow > 0)) {
